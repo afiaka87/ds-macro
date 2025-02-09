@@ -6,7 +6,6 @@ Ultimate goal is to incorporate an LLM to control the player's movements with pl
 
 - **Movement Control:** Implements routines to navigate and patrol areas effectively, ensuring comprehensive scanning of environments.
 - (TODO) **Cargo Detection:** Keeps track of your cargo by analysing in-game menus.
-- (TODO) **Screen Analysis:** Uses OCR and image processing to scan for specific UI elements related to cargo management.
 
 ## Disclaimer
 
