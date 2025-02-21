@@ -17,3 +17,6 @@ wheels/
 
 # Screen captures
 captures/
+
+# Serialized routines
+routines/
