@@ -99,6 +99,11 @@ async def run_custom_example(ds: DSController):
     # Cancel the scanning routine by category
     ds.cancel_category(RoutineCategory.SCANNING)
 
+    # Balance routine
+    balance = ds.create_routine(
+        name="balance_left", categories=[RoutineCategory.ESSENTIAL]
+    )
+
     # Create a new routine to finish up
     finish = ds.create_routine(name="finish")
 

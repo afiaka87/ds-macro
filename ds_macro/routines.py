@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Callable
 import asyncio
 import logging
 from ds_macro.models import (
+    MouseButton,
     MovementDirection,
     Routine as LegacyRoutine,
     ActionType,
@@ -178,6 +179,133 @@ def create_cargo_delivery_legacy() -> LegacyRoutine:
     )
 
 
+# Add these new functions to ds_macro/routines.py
+
+
+async def create_balance_left(controller: DSController) -> None:
+    """Creates a routine that holds left mouse button to center balance left"""
+    routine = controller.create_routine(
+        name="balance_left", categories=["movement", "balance"]
+    )
+
+    # Hold left mouse button
+    with routine.sequential_actions() as actions:
+        actions.mouse_press(MouseButton.LEFT)
+        actions.wait(2.0)  # Hold for 2 seconds by default
+        actions.mouse_release(MouseButton.LEFT)
+
+    await routine.run()
+
+
+async def create_balance_right(controller: DSController) -> None:
+    """Creates a routine that holds right mouse button to center balance right"""
+    routine = controller.create_routine(
+        name="balance_right", categories=["movement", "balance"]
+    )
+
+    # Hold right mouse button
+    with routine.sequential_actions() as actions:
+        actions.mouse_press(MouseButton.RIGHT)
+        actions.wait(2.0)  # Hold for 2 seconds by default
+        actions.mouse_release(MouseButton.RIGHT)
+
+    await routine.run()
+
+
+async def create_balance_both(controller: DSController) -> None:
+    """Creates a routine that holds both mouse buttons to fully center balance"""
+    routine = controller.create_routine(
+        name="balance_both", categories=["movement", "balance"]
+    )
+
+    # Hold both mouse buttons simultaneously
+    with routine.parallel_actions() as actions:
+        actions.mouse_press(MouseButton.LEFT)
+        actions.mouse_press(MouseButton.RIGHT)
+
+    # Wait while holding
+    with routine.sequential_actions() as actions:
+        actions.wait(2.0)  # Hold for 2 seconds by default
+
+    # Release both buttons
+    with routine.sequential_actions() as actions:
+        actions.mouse_release(MouseButton.LEFT)
+        actions.mouse_release(MouseButton.RIGHT)
+
+    await routine.run()
+
+
+async def create_balance_left_moving(controller: DSController) -> None:
+    """Creates a routine that holds left mouse button while moving forward"""
+    routine = controller.create_routine(
+        name="balance_left_moving", categories=["movement", "balance"]
+    )
+
+    # Start moving forward and balance left simultaneously
+    with routine.parallel_actions() as actions:
+        actions.press(MovementDirection.FORWARD)
+        actions.mouse_press(MouseButton.LEFT)
+
+    # Keep moving and balancing
+    with routine.sequential_actions() as actions:
+        actions.wait(5.0)  # Move and balance for 5 seconds
+
+    # Stop moving and balancing
+    with routine.sequential_actions() as actions:
+        actions.release(MovementDirection.FORWARD)
+        actions.mouse_release(MouseButton.LEFT)
+
+    await routine.run()
+
+
+async def create_balance_right_moving(controller: DSController) -> None:
+    """Creates a routine that holds right mouse button while moving forward"""
+    routine = controller.create_routine(
+        name="balance_right_moving", categories=["movement", "balance"]
+    )
+
+    # Start moving forward and balance right simultaneously
+    with routine.parallel_actions() as actions:
+        actions.press(MovementDirection.FORWARD)
+        actions.mouse_press(MouseButton.RIGHT)
+
+    # Keep moving and balancing
+    with routine.sequential_actions() as actions:
+        actions.wait(5.0)  # Move and balance for 5 seconds
+
+    # Stop moving and balancing
+    with routine.sequential_actions() as actions:
+        actions.release(MovementDirection.FORWARD)
+        actions.mouse_release(MouseButton.RIGHT)
+
+    await routine.run()
+
+
+async def create_balance_both_moving(controller: DSController) -> None:
+    """Creates a routine that holds both mouse buttons while moving forward"""
+    routine = controller.create_routine(
+        name="balance_both_moving", categories=["movement", "balance"]
+    )
+
+    # Start moving forward and balance both sides simultaneously
+    with routine.parallel_actions() as actions:
+        actions.press(MovementDirection.FORWARD)
+        actions.mouse_press(MouseButton.LEFT)
+        actions.mouse_press(MouseButton.RIGHT)
+
+    # Keep moving and balancing
+    with routine.sequential_actions() as actions:
+        actions.wait(5.0)  # Move and balance for 5 seconds
+
+    # Stop moving and balancing
+    with routine.sequential_actions() as actions:
+        actions.release(MovementDirection.FORWARD)
+        actions.mouse_release(MouseButton.LEFT)
+        actions.mouse_release(MouseButton.RIGHT)
+
+    await routine.run()
+
+
 # Collection of available legacy routines
 LEGACY_ROUTINES = {
     "360_scan": create_360_scan_legacy(),
@@ -192,6 +320,12 @@ AVAILABLE_ROUTINES = {
     "patrol": create_patrol_route,
     "deliver": create_cargo_delivery,
     "combat": create_combat_sequence,
+    "balance_left": create_balance_left,
+    "balance_right": create_balance_right,
+    "balance_both": create_balance_both,
+    "balance_left_moving": create_balance_left_moving,
+    "balance_right_moving": create_balance_right_moving,
+    "balance_both_moving": create_balance_both_moving,
 }
 
 
