@@ -301,8 +301,10 @@ class DSController:
             return False
 
         logger.info(f"Cancelling all routines with name: {name}")
-        count = len(self._name_to_routines[name])
-        for routine in list(self._name_to_routines[name]):
+        # Make a copy of the set to avoid modification during iteration
+        routines_to_cancel = list(self._name_to_routines[name].copy())
+        count = len(routines_to_cancel)
+        for routine in routines_to_cancel:
             routine.cancel()
         logger.info(f"Cancelled {count} routines")
         return True
@@ -316,8 +318,10 @@ class DSController:
             return False
 
         logger.info(f"Cancelling all routines in category: {category}")
-        count = len(self._routine_registry[category])
-        for routine in list(self._routine_registry[category]):
+        # Make a copy of the set to avoid modification during iteration
+        routines_to_cancel = list(self._routine_registry[category].copy())
+        count = len(routines_to_cancel)
+        for routine in routines_to_cancel:
             routine.cancel()
         logger.info(f"Cancelled {count} routines")
         return True
@@ -417,13 +421,32 @@ class DSController:
             # For parallel actions, execute all at once
             logger.debug(f"Executing {len(sequence.actions)} actions in parallel")
             tasks = []
-            for action in sequence.actions:
-                task = asyncio.create_task(self._execute_action(action))
-                tasks.append(task)
+            try:
+                for action in sequence.actions:
+                    task = asyncio.create_task(self._execute_action(action))
+                    tasks.append(task)
 
-            # Wait for all tasks to complete
-            await asyncio.gather(*tasks)
-            logger.debug("Parallel execution completed")
+                # Wait for all tasks to complete
+                await asyncio.gather(*tasks)
+                logger.debug("Parallel execution completed")
+            except asyncio.CancelledError:
+                # If this task is cancelled, make sure we cancel all subtasks too
+                for task in tasks:
+                    if not task.done():
+                        task.cancel()
+                # Wait for all tasks to complete or be cancelled (with a timeout)
+                try:
+                    await asyncio.wait(tasks, timeout=2.0)
+                except Exception as e:
+                    logger.warning(f"Error during task cancellation: {e}")
+                raise  # Re-raise the CancelledError
+            except Exception as e:
+                # If any task fails, cancel all the others
+                for task in tasks:
+                    if not task.done():
+                        task.cancel()
+                logger.error(f"Error in parallel execution: {e}")
+                raise
         else:
             # For sequential actions, execute one after another
             logger.debug(f"Executing {len(sequence.actions)} actions sequentially")

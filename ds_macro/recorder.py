@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Set
 from pydantic import BaseModel
 from pynput import mouse, keyboard
 
-from models import (
+from .models import (
     Action,
     ActionType,
     Routine,
@@ -79,24 +79,6 @@ class InputRecorder:
         self.keyboard_listener.start()
         
         logger.info(f"Input recorder initialized - press {self.TOGGLE_KEY} key to start/stop recording")
-        self.reverse_key_map = {v: k for k, v in self.key_mapping.dict().items()}
-        
-        # Special key mappings for arrow keys etc
-        self.special_key_map = {
-            'left': MovementDirection.LEFT.value,
-            'right': MovementDirection.RIGHT.value,
-            'up': MovementDirection.FORWARD.value,
-            'down': MovementDirection.BACKWARD.value,
-            'space': 'space',
-            'shift': 'shift',
-            'shift_r': 'shift',
-            'ctrl': 'ctrl',
-            'ctrl_r': 'ctrl',
-            'alt': 'alt',
-            'alt_r': 'alt',
-            'tab': 'tab',
-            'escape': 'esc'
-        }
         
         logger.debug(f"Initialized with key mappings: {self.reverse_key_map}")
         logger.debug(f"Special key mappings: {self.special_key_map}")
@@ -257,96 +239,50 @@ class InputRecorder:
                 logger.debug(f"Recording key hold action for key {mapped_key} for {duration:.2f}s")
                 self.actions.append(action)
                     
-        except Exception as e:
-            logger.error(f"Error processing key press: {e}", exc_info=True)
-                
-            # Check if this key is in our mapping
-            mapped_key = key_str
-            if key_str in self.reverse_key_map:
-                mapped_key = self.reverse_key_map[key_str]
-                logger.debug(f"Found key in reverse mapping: {key_str} -> {mapped_key}")
-            elif key_str in MovementDirection.__members__.values():
-                mapped_key = key_str
-                logger.debug(f"Key is already a movement direction: {mapped_key}")
-            else:
-                logger.debug(f"Key not found in mappings: {key_str}")
-                return
-
-            self.pressed_keys.add(mapped_key)
-            logger.debug(f"Current pressed keys: {self.pressed_keys}")
-                
-            # For movement keys, create a MOVE action
-            if mapped_key in MovementDirection.__members__.values():
-                duration = self._get_time_since_last()
-                # Check if sprinting
-                if "sprint" in self.pressed_keys:
-                    action = Action(
-                        type=ActionType.SPRINT,
-                        duration=duration,
-                        params={"direction": mapped_key}
-                    )
-                    logger.debug(f"Recording sprint action in direction {mapped_key} for {duration:.2f}s")
-                    self.actions.append(action)
-                else:
-                    action = Action(
-                        type=ActionType.MOVE,
-                        duration=duration,
-                        params={"direction": mapped_key}
-                    )
-                    logger.debug(f"Recording move action in direction {mapped_key} for {duration:.2f}s")
-                    self.actions.append(action)
-            else:
-                # For other keys, create a HOLD_KEY action
-                duration = self._get_time_since_last()
-                action = Action(
-                    type=ActionType.HOLD_KEY,
-                    duration=duration,
-                    params={"key": mapped_key}
-                )
-                logger.debug(f"Recording key hold action for key {mapped_key} for {duration:.2f}s")
-                self.actions.append(action)
-                    
-        except Exception as e:
-            logger.error(f"Error processing key press: {e}", exc_info=True)
-                
-            # Check if this key is in our mapping
-            if key_str in self.reverse_key_map:
-                mapped_key = self.reverse_key_map[key_str]
-                self.pressed_keys.add(mapped_key)
-                
-                # For movement keys, create a MOVE action
-                if mapped_key in MovementDirection.__members__.values():
-                    duration = self._get_time_since_last()
-                    # Check if sprinting
-                    if "sprint" in self.pressed_keys:
-                        self.actions.append(
-                            Action(
-                                type=ActionType.SPRINT,
-                                duration=duration,
-                                params={"direction": mapped_key}
-                            )
-                        )
-                    else:
-                        self.actions.append(
-                            Action(
-                                type=ActionType.MOVE,
-                                duration=duration,
-                                params={"direction": mapped_key}
-                            )
-                        )
-                else:
-                    # For other keys, create a HOLD_KEY action
-                    duration = self._get_time_since_last()
-                    action = Action(
-                        type=ActionType.HOLD_KEY,
-                        duration=duration,
-                        params={"key": mapped_key}
-                    )
-                    logger.debug(f"Recording key hold action for key {mapped_key} for {duration:.2f}s")
-                    self.actions.append(action)
-                    
         except AttributeError:
             logger.warning(f"Unmapped key pressed: {key}")
+        except Exception as e:
+            logger.error(f"Error processing key press: {e}", exc_info=True)
+            # Continue with best effort if we managed to get key_str
+            if 'key_str' in locals():
+                try:
+                    # Check if this key is in our mapping
+                    if key_str in self.reverse_key_map:
+                        mapped_key = self.reverse_key_map[key_str]
+                        self.pressed_keys.add(mapped_key)
+                        
+                        # For movement keys, create a MOVE action
+                        if mapped_key in MovementDirection.__members__.values():
+                            duration = self._get_time_since_last()
+                            # Check if sprinting
+                            if "sprint" in self.pressed_keys:
+                                self.actions.append(
+                                    Action(
+                                        type=ActionType.SPRINT,
+                                        duration=duration,
+                                        params={"direction": mapped_key}
+                                    )
+                                )
+                            else:
+                                self.actions.append(
+                                    Action(
+                                        type=ActionType.MOVE,
+                                        duration=duration,
+                                        params={"direction": mapped_key}
+                                    )
+                                )
+                        else:
+                            # For other keys, create a HOLD_KEY action
+                            duration = self._get_time_since_last()
+                            action = Action(
+                                type=ActionType.HOLD_KEY,
+                                duration=duration,
+                                params={"key": mapped_key}
+                            )
+                            logger.debug(f"Recording key hold action for key {mapped_key} for {duration:.2f}s")
+                            self.actions.append(action)
+                except Exception as inner_e:
+                    logger.error(f"Error in key press exception handler: {inner_e}", exc_info=True)
 
     def _on_key_release(self, key: keyboard.Key) -> None:
         """Handle key release events"""
@@ -421,7 +357,17 @@ class InputRecorder:
         
         # Release any held keys
         for key in self.pressed_keys.copy():
-            self._on_key_release(keyboard.KeyCode.from_char(key))
+            try:
+                # Try to simulate a key release - special keys may not be representable by a single char
+                if len(key) == 1:  # If it's a single character, use from_char
+                    self._on_key_release(keyboard.KeyCode.from_char(key))
+                else:
+                    # For special keys, just update the internal state
+                    self.pressed_keys.discard(key)
+                    logger.debug(f"Released key: {key}")
+            except Exception as e:
+                logger.warning(f"Error releasing key {key}: {e}")
+                self.pressed_keys.discard(key)
             
         self.is_recording = False
         self.start_time = None
@@ -461,7 +407,7 @@ class InputRecorder:
         filename = f"{directory}/{name}_{timestamp}.json"
         
         # Convert routine to dict, handling Enum values
-        routine_dict = json.loads(routine.model_dump_json())
+        routine_dict = routine.model_dump()
         
         with open(filename, 'w') as f:
             json.dump(routine_dict, f, indent=2)
